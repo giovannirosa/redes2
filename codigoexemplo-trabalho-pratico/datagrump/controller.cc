@@ -4,8 +4,8 @@
 #include "timestamp.hh"
 
 using namespace std;
-unsigned int the_window_size = 10;
-unsigned const int MINIMUN_WINDOW_SIZE = 10;
+unsigned int the_window_size = 1;
+unsigned const int MINIMUN_WINDOW_SIZE = 1;
 
 /* Default constructor */
 Controller::Controller( const bool debug )
@@ -91,5 +91,5 @@ void Controller::ack_received( const uint64_t sequence_number_acked,
    before sending one more datagram */
 unsigned int Controller::timeout_ms()
 {
-  return 1000; /* timeout of one second */
+  return 500; /* timeout of one second */
 }
