@@ -4,6 +4,8 @@
 #include "timestamp.hh"
 
 using namespace std;
+unsigned int the_window_size = 10;
+unsigned const int MINIMUN_WINDOW_SIZE = 10;
 
 /* Default constructor */
 Controller::Controller( const bool debug )
@@ -14,7 +16,7 @@ Controller::Controller( const bool debug )
 unsigned int Controller::window_size()
 {
   /* Default: fixed window size of 100 outstanding datagrams */
-  unsigned int the_window_size = 50;
+  
 
   if ( debug_ ) {
     cerr << "At time " << timestamp_ms()
@@ -34,6 +36,15 @@ void Controller::datagram_was_sent( const uint64_t sequence_number,
 {
   /* Default: take no action */
 
+  // if (after_timeout) {
+  //   the_window_size /= 2;
+  //   cerr << "Window size divided by 2"
+  //   << ", new value = " << the_window_size
+  //   << endl;
+  // } else {
+  //   the_window_size += 1;
+  // }
+
   if ( debug_ ) {
     cerr << "At time " << send_timestamp
 	 << " sent datagram " << sequence_number << " (timeout = " << after_timeout << ")\n";
@@ -52,12 +63,27 @@ void Controller::ack_received( const uint64_t sequence_number_acked,
 {
   /* Default: take no action */
 
+  uint64_t rtt = timestamp_ack_received - send_timestamp_acked;
+  if (rtt > timeout_ms()) {
+    the_window_size = the_window_size*0.5;
+    if (the_window_size < MINIMUN_WINDOW_SIZE) {
+      the_window_size = MINIMUN_WINDOW_SIZE;
+    }
+    cerr << "Window size divided by 2"
+    << ", new value = " << the_window_size
+    << endl;
+  } else {
+    ++the_window_size;
+  }
+
   if ( debug_ ) {
     cerr << "At time " << timestamp_ack_received
 	 << " received ack for datagram " << sequence_number_acked
 	 << " (send @ time " << send_timestamp_acked
 	 << ", received @ time " << recv_timestamp_acked << " by receiver's clock)"
-	 << endl;
+	 << ", RTT = " << rtt
+   << ", Window Size = " << the_window_size
+   << endl;
   }
 }
 
