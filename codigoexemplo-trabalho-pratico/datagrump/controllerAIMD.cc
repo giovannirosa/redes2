@@ -51,9 +51,6 @@ void Controller::datagram_was_sent( const uint64_t sequence_number,
   }
 }
 
-bool divided = false;
-uint64_t counter = 0;
-
 /* An ack was received */
 void Controller::ack_received( const uint64_t sequence_number_acked,
 			       /* what sequence number was acknowledged */
@@ -67,22 +64,16 @@ void Controller::ack_received( const uint64_t sequence_number_acked,
   /* Default: take no action */
 
   uint64_t rtt = timestamp_ack_received - send_timestamp_acked;
-  if (rtt > timeout_ms() && divided) {
-    ++counter;
-  }
-  if (rtt > timeout_ms() && (!divided || counter > 500)) {
+  if (rtt > timeout_ms()) {
     the_window_size = the_window_size*0.5;
     if (the_window_size < MINIMUN_WINDOW_SIZE) {
       the_window_size = MINIMUN_WINDOW_SIZE;
     }
-    divided = true;
-    counter = 0;
     cerr << "Window size divided by 2"
     << ", new value = " << the_window_size
     << endl;
-  } else if(rtt < timeout_ms()) {
+  } else {
     ++the_window_size;
-    divided = false;
   }
 
   if ( debug_ ) {
@@ -100,5 +91,5 @@ void Controller::ack_received( const uint64_t sequence_number_acked,
    before sending one more datagram */
 unsigned int Controller::timeout_ms()
 {
-  return 200; /* timeout of one second */
+  return 1000; /* timeout of one second */
 }
