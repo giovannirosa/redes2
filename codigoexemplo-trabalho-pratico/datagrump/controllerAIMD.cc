@@ -4,8 +4,13 @@
 #include "timestamp.hh"
 
 using namespace std;
-unsigned int the_window_size = 1;
-unsigned const int MINIMUN_WINDOW_SIZE = 1;
+
+unsigned const int MINIMUN_WINDOW_SIZE = 5;
+unsigned const int TIMEOUT = 70;
+const float DECREASE_FACTOR = 0.7;
+const int INCREASE_FACTOR = 1;
+unsigned int windowSize = MINIMUN_WINDOW_SIZE;
+unsigned int counter = 0;
 
 /* Default constructor */
 Controller::Controller( const bool debug )
@@ -20,10 +25,10 @@ unsigned int Controller::window_size()
 
   if ( debug_ ) {
     cerr << "At time " << timestamp_ms()
-	 << " window size is " << the_window_size << endl;
+	 << " window size is " << windowSize << endl;
   }
 
-  return the_window_size;
+  return windowSize;
 }
 
 /* A datagram was sent */
@@ -34,16 +39,12 @@ void Controller::datagram_was_sent( const uint64_t sequence_number,
 				    const bool after_timeout
 				    /* datagram was sent because of a timeout */ )
 {
-  /* Default: take no action */
-
-  // if (after_timeout) {
-  //   the_window_size /= 2;
-  //   cerr << "Window size divided by 2"
-  //   << ", new value = " << the_window_size
-  //   << endl;
-  // } else {
-  //   the_window_size += 1;
-  // }
+  // Close the window until timeout is solved
+  if (after_timeout) {
+    windowSize = 0;
+    cerr << "Window size down to 0"
+    << endl;
+  }
 
   if ( debug_ ) {
     cerr << "At time " << send_timestamp
@@ -61,19 +62,26 @@ void Controller::ack_received( const uint64_t sequence_number_acked,
 			       const uint64_t timestamp_ack_received )
                                /* when the ack was received (by sender) */
 {
-  /* Default: take no action */
 
+  // RTT is the difference between send time and ack time
   uint64_t rtt = timestamp_ack_received - send_timestamp_acked;
-  if (rtt > timeout_ms()) {
-    the_window_size = the_window_size*0.5;
-    if (the_window_size < MINIMUN_WINDOW_SIZE) {
-      the_window_size = MINIMUN_WINDOW_SIZE;
+  // Counter to make sure all packets are sent with specified window
+  ++counter;
+  if (rtt > timeout_ms() && counter >= windowSize) {
+    counter = 0;
+    // Decrease window
+    windowSize *= DECREASE_FACTOR;
+    // Make sure it's at least the minimun size
+    if (windowSize < MINIMUN_WINDOW_SIZE) {
+      windowSize = MINIMUN_WINDOW_SIZE;
     }
-    cerr << "Window size divided by 2"
-    << ", new value = " << the_window_size
+    cerr << "Window size decreased by "
+    << DECREASE_FACTOR
+    << ", new value = " << windowSize
     << endl;
-  } else {
-    ++the_window_size;
+  } else if (counter >= windowSize) {
+    // Increase window
+    windowSize += INCREASE_FACTOR;
   }
 
   if ( debug_ ) {
@@ -82,7 +90,7 @@ void Controller::ack_received( const uint64_t sequence_number_acked,
 	 << " (send @ time " << send_timestamp_acked
 	 << ", received @ time " << recv_timestamp_acked << " by receiver's clock)"
 	 << ", RTT = " << rtt
-   << ", Window Size = " << the_window_size
+   << ", Window Size = " << windowSize
    << endl;
   }
 }
@@ -91,5 +99,5 @@ void Controller::ack_received( const uint64_t sequence_number_acked,
    before sending one more datagram */
 unsigned int Controller::timeout_ms()
 {
-  return 1000; /* timeout of one second */
+  return TIMEOUT;
 }

@@ -1,11 +1,25 @@
 #include <iostream>
+#include <limits.h>
 
 #include "controller.hh"
 #include "timestamp.hh"
 
 using namespace std;
-unsigned int the_window_size = 1;
-unsigned const int MINIMUN_WINDOW_SIZE = 1;
+
+
+unsigned int rcv_window_size = INT_MAX;
+unsigned int ssthresh = INT_MAX;
+unsigned int rto = 200;
+
+unsigned const int MINIMUN_WINDOW_SIZE = 5;
+unsigned const int TIMEOUT = 70;
+const float DECREASE_FACTOR = 0.7;
+const int INCREASE_FACTOR = 1;
+unsigned int windowSize = MINIMUN_WINDOW_SIZE;
+bool divided = false;
+unsigned int counter = 0;
+unsigned int last_window_size = 0;
+uint64_t actual_seq;
 
 /* Default constructor */
 Controller::Controller( const bool debug )
@@ -20,10 +34,10 @@ unsigned int Controller::window_size()
 
   if ( debug_ ) {
     cerr << "At time " << timestamp_ms()
-	 << " window size is " << the_window_size << endl;
+	 << " window size is " << windowSize << endl;
   }
 
-  return the_window_size;
+  return windowSize;
 }
 
 /* A datagram was sent */
@@ -36,14 +50,12 @@ void Controller::datagram_was_sent( const uint64_t sequence_number,
 {
   /* Default: take no action */
 
-  // if (after_timeout) {
-  //   the_window_size /= 2;
-  //   cerr << "Window size divided by 2"
-  //   << ", new value = " << the_window_size
-  //   << endl;
-  // } else {
-  //   the_window_size += 1;
-  // }
+  if (after_timeout) {
+    windowSize = 0;
+    cerr << "Window size divided by 2"
+    << ", new value = " << windowSize
+    << endl;
+  }
 
   if ( debug_ ) {
     cerr << "At time " << send_timestamp
@@ -51,8 +63,7 @@ void Controller::datagram_was_sent( const uint64_t sequence_number,
   }
 }
 
-bool divided = false;
-uint64_t counter = 0;
+int increaseMode = 1;
 
 /* An ack was received */
 void Controller::ack_received( const uint64_t sequence_number_acked,
@@ -64,26 +75,74 @@ void Controller::ack_received( const uint64_t sequence_number_acked,
 			       const uint64_t timestamp_ack_received )
                                /* when the ack was received (by sender) */
 {
-  /* Default: take no action */
+  // if (sequence_number_acked > actual_seq)
+  //   actual_seq = sequence_number_acked;
+  // else
+  //   return;
+  
+
+  // if (windowSize >= ssthresh) { // Congestion Avoidance phase
+  //     windowSize += 1/windowSize;
+  //   } else {
+  //     ++windowSize;
+  //   }
+  
+  // if (rtt > rto) {
+  //   windowSize *= 0.5;
+  // //   if (windowSize < 2)
+  // //     ssthresh = 2;
+  // //   else
+  // //     ssthresh = windowSize;
+  // //   windowSize = 1;
+  // }
 
   uint64_t rtt = timestamp_ack_received - send_timestamp_acked;
-  if (rtt > timeout_ms() && divided) {
-    ++counter;
-  }
-  if (rtt > timeout_ms() && (!divided || counter > 500)) {
-    the_window_size = the_window_size*0.5;
-    if (the_window_size < MINIMUN_WINDOW_SIZE) {
-      the_window_size = MINIMUN_WINDOW_SIZE;
-    }
-    divided = true;
+  ++counter;
+  if (rtt > timeout_ms() && counter >= windowSize) {
     counter = 0;
-    cerr << "Window size divided by 2"
-    << ", new value = " << the_window_size
+    windowSize *= DECREASE_FACTOR;
+    if (windowSize < MINIMUN_WINDOW_SIZE) {
+      windowSize = MINIMUN_WINDOW_SIZE;
+    }
+    cerr << "Window size decreased by "
+    << DECREASE_FACTOR
+    << ", new value = " << windowSize
     << endl;
-  } else if(rtt < timeout_ms()) {
-    ++the_window_size;
-    divided = false;
+  } else if (counter >= windowSize) {
+    windowSize += INCREASE_FACTOR;
   }
+
+
+
+
+
+  /* Default: take no action */
+  // if (sequence_number_acked > actual_seq)
+  //   actual_seq = sequence_number_acked;
+
+  // if (rtt > timeout_ms()) {
+  //   ++counter;
+  // }
+  // if (rtt > timeout_ms() && counter > 500) {
+  //   last_window_size = windowSize*0.6;
+  //   windowSize = windowSize*0.5;
+  //   if (windowSize < MINIMUN_WINDOW_SIZE) {
+  //     windowSize = MINIMUN_WINDOW_SIZE;
+  //   }
+  //   // divided = true;
+  //   counter = 0;
+  //   increaseMode = 0;
+  //   cerr << "Window size divided by 2"
+  //   << ", new value = " << windowSize
+  //   << endl;
+  // } else if(rtt <= timeout_ms()) {
+  //   if (increaseMode) {
+  //     windowSize *= 2;
+  //   } else {
+  //     ++windowSize;
+  //   }
+  //   // divided = false;
+  // }
 
   if ( debug_ ) {
     cerr << "At time " << timestamp_ack_received
@@ -91,7 +150,8 @@ void Controller::ack_received( const uint64_t sequence_number_acked,
 	 << " (send @ time " << send_timestamp_acked
 	 << ", received @ time " << recv_timestamp_acked << " by receiver's clock)"
 	 << ", RTT = " << rtt
-   << ", Window Size = " << the_window_size
+   << ", Window Size = " << windowSize
+   << ", Counter = " << counter
    << endl;
   }
 }
@@ -100,5 +160,5 @@ void Controller::ack_received( const uint64_t sequence_number_acked,
    before sending one more datagram */
 unsigned int Controller::timeout_ms()
 {
-  return 200; /* timeout of one second */
+  return TIMEOUT;
 }

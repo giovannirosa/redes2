@@ -55,12 +55,12 @@ system q{mm-throughput-graph 500 /tmp/contest_uplink_log > /dev/null}
 print "\n";
 
 # gzip logfile
-#print q{Uploading data to server...};
+# print q{Uploading data to server...};
 
 # my $www = LWP::UserAgent->new();
 # my $request = POST 'http://www.nr2.ufpr.br/~michele/teaching/S2_2018/INFO7015/';
 #  Content_Type => 'multipart/form-data',
-#  Content => [contents => ['/tmp/contest_uplink_log', $username]];
+#  Content => [contents => ['/tmp/contest_uplink_log', 'Carinhabacana']];
 
 # my $response = $www->request( $request );
 
