@@ -11,10 +11,8 @@ using namespace std;
 
 unsigned const int MINIMUN_WINDOW_SIZE = 5;
 unsigned const int TIMEOUT = 70;
-float DECREASE_FACTOR = 0.7;
-int decreaseCounter = 0;
-int INCREASE_FACTOR = 1;
-int increaseCounter = 0;
+const float DECREASE_FACTOR = 0.7;
+const int INCREASE_FACTOR = 1;
 unsigned int windowSize = MINIMUN_WINDOW_SIZE;
 unsigned int counter = 0;
 
@@ -74,12 +72,7 @@ void Controller::ack_received( const uint64_t sequence_number_acked,
   ++counter;
   if (rtt > timeout_ms() && counter >= windowSize) {
     counter = 0;
-    INCREASE_FACTOR = 1;
     // Decrease window
-    // if (++decreaseCounter > 20) {
-    //   DECREASE_FACTOR += 0.01;
-    //   decreaseCounter = 0;
-    // }
     windowSize *= DECREASE_FACTOR;
     // Make sure it's at least the minimun size
     if (windowSize < MINIMUN_WINDOW_SIZE) {
@@ -90,12 +83,7 @@ void Controller::ack_received( const uint64_t sequence_number_acked,
     << ", new value = " << windowSize
     << endl;
   } else if (counter >= windowSize) {
-    DECREASE_FACTOR = 0.7;
     // Increase window
-    // if (++increaseCounter > 20) {
-    //   ++INCREASE_FACTOR;
-    //   increaseCounter = 0;
-    // }
     windowSize += INCREASE_FACTOR;
   }
 
